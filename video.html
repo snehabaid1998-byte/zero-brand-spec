@@ -1,0 +1,329 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Build on Zero — launch video source</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#ece9ea;--ink:#2e0000}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#d9d4d5;color:var(--ink);font-family:Geist,system-ui,sans-serif;display:flex;flex-direction:column;align-items:center;gap:14px;padding:20px 16px}
+  canvas{width:min(92vw,620px);height:auto;aspect-ratio:1;border-radius:14px;box-shadow:0 20px 50px -25px rgba(46,0,0,.5);background:var(--bg)}
+  .ctl{display:flex;gap:10px;align-items:center;width:min(92vw,620px);font-size:14px}
+  .ctl button{border:0;background:var(--ink);color:#fff;border-radius:999px;padding:8px 14px;font:inherit;font-weight:600;cursor:pointer}
+  .ctl input{flex:1}
+  .ctl output{font-family:"Geist Mono",monospace;width:56px;text-align:right}
+  p{font-size:13px;color:#6d5f60;max-width:620px;text-align:center}
+</style>
+</head>
+<body>
+<canvas id="cv" width="1080" height="1080"></canvas>
+<div class="ctl"><button id="play">Pause</button><input type="range" id="scrub" min="0" max="26" step="0.01" value="0" aria-label="Scrub timeline"><output id="tOut">0.0s</output></div>
+<p>Source for the Build on Zero launch video. Every frame is drawn by <code>render(t)</code>, so the export is frame-perfect. Spec concept by Sneha Baid, not affiliated with Zero.</p>
+<script>
+(() => {
+  const FPS = 30, DUR = 26, S = 1080;
+  const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+  const INK = '#2e0000', BG = '#ece9ea', MUTED = '#7d6e6f', YEL = '#e6ee3c';
+  const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
+  const lerp = (a,b,k) => a + (b-a)*k;
+  const eo = k => 1 - Math.pow(1-clamp(k,0,1), 3);
+  const eio = k => { k = clamp(k,0,1); return k<.5 ? 4*k*k*k : 1 - Math.pow(-2*k+2,3)/2; };
+  const win = (t,a,b) => clamp((t-a)/(b-a), 0, 1);
+  const hash = n => { const x = Math.sin(n*127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
+  const hx = h => [1,3,5].map(i => parseInt(h.slice(i,i+2),16));
+  const mix = (a,b,k) => a.map((v,i) => Math.round(v + (b[i]-v)*k));
+  const css = (c,a=1) => a===1 ? `rgb(${c})` : `rgba(${c},${a})`;
+  const F = (w,s,mono) => `${w} ${s}px ${mono ? '"Geist Mono", monospace' : 'Geist, sans-serif'}`;
+  function rr(x,y,w,h,r){ ctx.beginPath(); ctx.roundRect(x,y,w,h,r); }
+  function wrap(text, maxW){ const words = text.split(' '), lines = []; let cur = ''; words.forEach(w => { const tst = cur ? cur+' '+w : w; if(ctx.measureText(tst).width > maxW && cur){ lines.push(cur); cur = w; } else cur = tst; }); if(cur) lines.push(cur); return lines; }
+
+  /* ---------- grades + mammoth (same as the launch page) ---------- */
+  const GRADES = [
+    {skyT:'#121828', skyB:'#3b4763', far:'#56638a', near:'#232c47', ground:'#dfe5ee', groundD:'#b9c3d4', M:'#5b3b47', D:'#382331', T:'#c9d0dc', E:'#e9eef6'},
+    {skyT:'#f3eee9', skyB:'#e4dbd3', far:'#d3c7c0', near:'#bfb0a8', ground:'#ddd2c8', groundD:'#c7b9ad', M:'#2e0000', D:'#1a0000', T:'#f4ecdc', E:'#f4ecdc'},
+    {skyT:'#d4e035', skyB:'#f8fad4', far:'#c0ca38', near:'#a2ab27', ground:'#efe9c6', groundD:'#d8d09c', M:'#2e0000', D:'#1a0000', T:'#fffbe8', E:'#fffbe8'}
+  ].map(g => Object.fromEntries(Object.entries(g).map(([k,v]) => [k, hx(v)])));
+  const gradeAt = g => { const i = g < 1 ? 0 : 1, k = clamp(g-i,0,1), A = GRADES[i], B = GRADES[i+1], o = {}; for(const key in A) o[key] = mix(A[key], B[key], k); return o; };
+
+  const W = 30, H = 20;
+  const BODY = ["...................MMM",".............MMM..MMMMM","...........MMMMMMMMMMMMM",".........MMMMMMMMMMMMMMMM",".......MMMMMMMMMMMMMMMMMMM",".....MMMMMMMMMMMMMMMMMMMMM","...MMMMMMMMMMMMMMMMMMMMMMM","..MMMMMMMMMMMMMMMMMMMMMMMM","..MMMMMMMMMMMMMMMMMMMMMMMM","..MMMMMMMMMMMMMMMMMMMMMMM","..MMMMMMMMMMMMMMMMMMMMMM","..MDMDMMDMDMMDMMDMDMMDM"];
+  const HAIR = [[5,9],[6,10],[4,13],[5,14],[6,7],[7,8],[7,16],[8,17],[4,17],[8,11],[9,12],[6,19],[9,5],[10,6]];
+  const FRINGE = [3,5,7,9,11,13,15,17,19,21];
+  const TRUNK = {
+    down:[[9,24],[9,25],[10,24],[10,25],[11,24],[11,25],[12,25],[13,25],[14,25],[15,25],[15,26],[14,27]],
+    up:[[9,24],[9,25],[8,25],[8,26],[7,26],[7,27],[6,27],[5,27],[5,28],[4,28],[3,28],[2,28],[2,27]],
+    sad:[[9,24],[9,25],[10,24],[10,25],[11,24],[11,25],[12,25],[13,25],[14,25],[15,25],[16,25],[16,26]]
+  };
+  const TUSK = [[10,23],[11,23],[12,24],[13,25],[13,26],[13,27],[12,28],[11,29],[10,29]];
+  function frame(mode, f, trumpet){
+    const g = Array.from({length:H}, () => Array(W).fill('.'));
+    const set = (r,c,v) => { if(r>=0&&r<H&&c>=0&&c<W) g[r][c]=v; };
+    const moving = mode!=='rest' || trumpet;
+    [4,8,16,20].forEach((c,i) => {
+      const lifted = moving && ((f===0 && (i===0||i===3)) || (f===2 && (i===1||i===2)));
+      const bottom = lifted ? 15 : 16, sh = lifted ? 1 : 0;
+      for(let r=12;r<=bottom;r++) for(let k=0;k<3;k++) set(r, c+k+sh, r===bottom?'D':'M');
+    });
+    BODY.forEach((row,r) => [...row].forEach((ch,c) => { if(ch!=='.') set(r,c,ch); }));
+    HAIR.forEach(([r,c]) => set(r,c,'D')); FRINGE.forEach(c => set(12,c,'D'));
+    set(6,2,'D'); set(7,1,'D'); set(8,1,'D'); set(9,0,'D');
+    (trumpet ? TRUNK.up : mode==='rest' ? TRUNK.sad : (f===0||f===2) ? TRUNK.up : TRUNK.down).forEach(([r,c]) => set(r,c,'M'));
+    TUSK.forEach(([r,c]) => set(r,c,'T'));
+    if(mode==='rest' && !trumpet){ set(5,21,'D'); set(5,22,'D'); } else { set(5,22,'E'); set(4,22,'D'); }
+    return g;
+  }
+
+  /* ---------- the quota story ---------- */
+  const DEALS = [11.7, 13.1, 14.5, 15.9];          // landing times
+  const AMT = [200, 200, 200, 240];                 // €k per deal
+  const START = 420, QUOTA = 1200, EXPECTED = 760;  // day 19 of 30
+  const GT = [0, .6, 1, 1, 2], MODE = ['rest','rest','dance','dance','hit'];
+  function story(t){
+    let n = 0; DEALS.forEach(d => { if(t >= d) n++; });
+    const won = START + AMT.slice(0,n).reduce((a,b)=>a+b,0);
+    const last = n ? DEALS[n-1] : -9, prevWon = won - (n ? AMT[n-1] : 0);
+    const k = eio((t - last)/0.9);
+    const g = n ? lerp(GT[n-1], GT[n], k) : 0;
+    const shownWon = n ? lerp(prevWon, won, eo((t-last)/0.6)) : won;
+    const trumpet = (t - last) >= 0 && (t - last) < .7 ? (t-last)/.7 : -1;
+    return {n, won, shownWon, g, mode:MODE[n], trumpet, last, amt: n ? AMT[n-1] : 0};
+  }
+
+  /* ---------- the scene (drawn small, scaled up crisp) ---------- */
+  const sc = document.createElement('canvas'); sc.width = 180; sc.height = 100;
+  const sx = sc.getContext('2d');
+  const SW = 180, SH = 100, GY = 91, CELL = 4, MX = Math.round(SW/2 - 15*CELL), MT = GY - 17*CELL;
+  const ridge = (x,a,b,c,d,e) => Math.round((a + b*Math.sin(x*c) + d*Math.sin(x*e + 1.3))/2)*2;
+  function disc(cx,cy,r,col){ sx.fillStyle = col; for(let y=-r;y<=r;y++) for(let x=-r;x<=r;x++) if(x*x+y*y <= r*r+r*.6) sx.fillRect(Math.round(cx+x), Math.round(cy+y), 1, 1); }
+  function scene(t, st){
+    const G = gradeAt(st.g), night = clamp(1-st.g,0,1), day = clamp(st.g,0,1), gold = clamp(st.g-1,0,1);
+    const sky = sx.createLinearGradient(0,0,0,GY); sky.addColorStop(0, css(G.skyT)); sky.addColorStop(1, css(G.skyB));
+    sx.fillStyle = sky; sx.fillRect(0,0,SW,SH);
+    if(night > .02) for(let i=0;i<34;i++){ const a = night*(.5+.5*Math.sin(t*1.8+i*1.7)); sx.fillStyle = `rgba(255,255,255,${a})`; sx.fillRect(Math.round(hash(i)*SW), Math.round(hash(i+50)*SH*.55), 1, 1); }
+    const bx = SW*.8, by = 14 + 8*night - gold*4;
+    if(night > .02){ sx.globalAlpha = night; disc(bx,by,6,'#eef2f8'); sx.fillStyle = '#c9d0dc'; sx.fillRect(Math.round(bx-2),Math.round(by-1),2,2); sx.globalAlpha = 1; }
+    if(day > .02){ sx.globalAlpha = day;
+      if(gold > .02){ sx.fillStyle = `rgba(255,255,255,${.5*gold})`; for(let k=0;k<12;k++){ const a = k/12*Math.PI*2 + t/2.4, r = 11 + 2*Math.sin(t*3.3+k); sx.fillRect(Math.round(bx+Math.cos(a)*r), Math.round(by+Math.sin(a)*r), 2, 2); } }
+      disc(bx,by,6+2*gold, gold>.5 ? '#ffffff' : '#fff6d8'); sx.globalAlpha = 1; }
+    if(gold > .02){ const cx = SW/2, cy = MT+30; for(let y=2;y<GY;y+=6) for(let x=2;x<SW;x+=6){ const d = Math.hypot(x-cx,y-cy), r = (2.6 - d/38 + Math.sin(t*6 - d/9)*.8)*gold; if(r>.35){ sx.fillStyle = 'rgba(255,255,255,.75)'; sx.fillRect(Math.round(x-r),Math.round(y-r),Math.ceil(r*2),Math.ceil(r*2)); } } }
+    sx.fillStyle = css(G.far); for(let x=0;x<SW;x+=2){ const h = ridge(x,30,9,.045,6,.11); sx.fillRect(x,GY-h,2,h); }
+    if(night > .3){ sx.fillStyle = `rgba(233,238,246,${(night-.3)*1.2})`; for(let x=0;x<SW;x+=2){ const h = ridge(x,30,9,.045,6,.11); if(h>34) sx.fillRect(x,GY-h,2,2); } }
+    sx.fillStyle = css(G.near); for(let x=0;x<SW;x+=2){ const h = ridge(x+50,14,5,.07,4,.19); sx.fillRect(x,GY-h,2,h); }
+    sx.fillStyle = css(G.ground); sx.fillRect(0,GY,SW,SH-GY);
+    sx.fillStyle = css(G.groundD); for(let x=0;x<SW;x+=6) sx.fillRect(x,GY+3,3,1);
+
+    const step = st.mode==='hit' ? .13 : .19, fi = Math.floor(t/step) % 4;
+    const tr = st.trumpet >= 0;
+    const grid = frame(st.mode, tr ? (Math.floor(st.trumpet*6)%2 ? 2 : 0) : fi, tr);
+    const bob = tr ? -Math.round(Math.sin(st.trumpet*Math.PI)*6) : st.mode!=='rest' ? fi%2 : (Math.sin(t*1.4)>0 ? 1 : 0);
+    sx.fillStyle = 'rgba(0,0,0,.12)'; sx.fillRect(MX+3*CELL, GY-1, 21*CELL, 2);
+    const pal = {M:css(G.M), D:css(G.D), T:css(G.T), E:css(G.E)};
+    for(let r=0;r<H;r++) for(let c=0;c<W;c++){ const v = grid[r][c]; if(v==='.') continue; sx.fillStyle = pal[v]; sx.fillRect(MX+c*CELL, MT+bob+r*CELL, CELL, CELL); }
+    const rim = gold > .02 ? `rgba(255,251,200,${.7*gold})` : night > .2 ? `rgba(180,200,240,${.5*night})` : null;
+    if(rim){ sx.fillStyle = rim; for(let c=0;c<W;c++) for(let r=0;r<12;r++){ if(grid[r][c]==='M'||grid[r][c]==='D'){ sx.fillRect(MX+c*CELL, MT+bob+r*CELL, CELL, 1); break; } } }
+    // snow
+    const sa = .9*clamp(night*1.3,0,1);
+    if(sa > .02){ sx.fillStyle = `rgba(255,255,255,${sa})`; for(let i=0;i<70;i++){ const v = 15 + hash(i+99)*25, y = (hash(i+7)*GY + t*v) % GY, x = (hash(i)*SW + Math.sin(t*1.6+i)*3 + SW) % SW; const s = hash(i+3) < .25 ? 2 : 1; sx.fillRect(Math.round(x), Math.round(y), s, s); } }
+    // dust from dancing feet
+    if(st.mode !== 'rest'){ const k0 = Math.floor((t-.5)/step), k1 = Math.floor(t/step);
+      for(let k=k0;k<=k1;k++){ if(k%2===0) continue; for(let j=0;j<(st.mode==='hit'?5:3);j++){ const s = k*13+j, age = t - k*step; if(age<0||age>.45) continue;
+        const x = MX + (4+hash(s)*20)*CELL + (hash(s+1)-.5)*84*age, y = GY-1 - hash(s+2)*84*age + 72*age*age;
+        sx.fillStyle = css(gold>.5 ? [255,255,255] : G.groundD); sx.fillRect(Math.round(x),Math.round(y),2,2); } } }
+    // coin falling for the next deal
+    DEALS.forEach((d,i) => { const p = (t - (d - .5))/.5; if(p >= 0 && p < 1){ const x = MX + 13*CELL + (hash(i+20)-.5)*20, y = -6 + (MT+2*CELL+6)*p*p;
+      sx.fillStyle = '#8a8f16'; sx.fillRect(Math.round(x)-3,Math.round(y)-3,6,6); sx.fillStyle = YEL; sx.fillRect(Math.round(x)-2,Math.round(y)-3,4,6); sx.fillRect(Math.round(x)-3,Math.round(y)-2,6,4); sx.fillStyle = '#fffbe0'; sx.fillRect(Math.round(x)-1,Math.round(y)-2,1,2); }
+      const age = t - d; if(age >= 0 && age < .8){ const x0 = MX + 13*CELL + (hash(i+20)-.5)*20, y0 = MT+2*CELL; for(let j=0;j<14;j++){ const a = hash(i*31+j)*Math.PI*2, v = (.6+hash(i*17+j)*1.6)*60; sx.fillStyle = YEL; sx.fillRect(Math.round(x0+Math.cos(a)*v*age), Math.round(y0+(Math.sin(a)*v-60)*age+108*age*age), 2, 2); } } });
+  }
+
+  /* ---------- scenes ---------- */
+  const FIELDS = [['Lead source','Other'],['Stage','Discovery?'],['Next step','TBD'],['Close date','31 Dec'],['Amount','€??'],['Owner','(unassigned)'],['Contact role','Champion, maybe'],['Industry','Software (?)'],['Company size','51-200'],['Call outcome','Positive-ish'],['Call notes','see email'],['Follow-up date','next week'],['Competitor','HubSpot'],['Budget confirmed','No'],['Decision maker','Unknown'],['Pain points','"too many fields"'],['Lead status','Working']];
+  const ROW_H = 52, ROW_GAP = 10, ROW_X = 160, ROW_W = 760;
+  const rowY = i => S - 110 - i*(ROW_H+ROW_GAP);
+
+  function halftoneCorners(t, amt){
+    const cl = [{x:0,y:0},{x:S,y:S},{x:S,y:0},{x:0,y:S}];
+    for(let y=18;y<S;y+=36) for(let x=18;x<S;x+=36){ let m = 0; cl.forEach((c,i) => { const d = Math.hypot(x-c.x,y-c.y); m = Math.max(m, 1 - d/(300 + 30*Math.sin(t*1.2+i))); }); m *= amt; if(m>.05){ ctx.fillStyle = m>.55 ? YEL : '#eef39a'; ctx.beginPath(); ctx.arc(x,y,m*14,0,7); ctx.fill(); } }
+  }
+
+  function drawFields(t){
+    // headline
+    const fade = 1 - eio(win(t,3.75,4.25));
+    const a1 = eo(win(t,.25,.8))*fade, a2 = eo(win(t,1.3,1.85))*fade;
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    ctx.fillStyle = `rgba(46,0,0,${a1})`; ctx.font = F(700,72);
+    ctx.fillText('You had a good call.', 120, 210 + (1-a1)*24);
+    ctx.fillStyle = `rgba(46,0,0,${a2})`;
+    ctx.fillText('Now log it into', 120, 300 + (1-a2)*24);
+    ctx.fillText('seventeen fields.', 120, 382 + (1-a2)*24);
+    // fields stacking up from the bottom
+    FIELDS.forEach(([lab,val],i) => {
+      const t0 = 1.75 + i*.1, p = eo(win(t,t0,t0+.35)); if(p <= 0) return;
+      const dissolveAt = 3.7 + (16-i)*.025;
+      if(t >= dissolveAt){ // break the row into pixels
+        const age = t - dissolveAt, y0 = rowY(i);
+        for(let cy=0; cy<ROW_H; cy+=13) for(let cx=0; cx<ROW_W; cx+=13){
+          const s = i*997 + cx*3 + cy*7, vx = (hash(s)-.5)*240, vy = -hash(s+1)*260, delay = hash(s+2)*.25;
+          const a = age - delay; if(a < 0){ ctx.fillStyle = '#fff'; ctx.fillRect(ROW_X+cx, y0+cy, 13, 13); continue; }
+          const al = 1 - a/1.1; if(al <= 0) continue;
+          ctx.fillStyle = hash(s+3) < .18 ? `rgba(46,0,0,${al})` : `rgba(255,255,255,${al})`;
+          ctx.fillRect(ROW_X+cx+vx*a, y0+cy+vy*a+900*a*a, 11, 11);
+        }
+        return;
+      }
+      const y = lerp(-80, rowY(i), p), rot = (1-p) * (hash(i)-.5) * .2;
+      ctx.save(); ctx.translate(ROW_X + ROW_W/2, y + ROW_H/2); ctx.rotate(rot); ctx.translate(-ROW_W/2, -ROW_H/2);
+      ctx.fillStyle = '#fff'; rr(0,0,ROW_W,ROW_H,12); ctx.fill();
+      ctx.strokeStyle = '#ddd5d6'; ctx.lineWidth = 2; rr(0,0,ROW_W,ROW_H,12); ctx.stroke();
+      ctx.fillStyle = MUTED; ctx.font = F(500,21,true); ctx.textBaseline = 'middle'; ctx.fillText(lab, 22, ROW_H/2);
+      ctx.fillStyle = '#f1edee'; rr(330, 9, ROW_W-345, ROW_H-18, 8); ctx.fill();
+      const typed = val.slice(0, Math.floor(clamp((t - t0 - .2)/.35,0,1)*val.length));
+      ctx.fillStyle = INK; ctx.font = F(500,22); ctx.fillText(typed, 346, ROW_H/2);
+      ctx.restore(); ctx.textBaseline = 'alphabetic';
+    });
+    // "Or just ask."
+    const a3 = eo(win(t,4.3,4.8)) * (1 - win(t,5.3,5.7));
+    if(a3 > 0){ ctx.textAlign = 'center'; ctx.fillStyle = `rgba(46,0,0,${a3})`; ctx.font = F(800,110); ctx.fillText('Or just ask.', S/2, S/2 + 36 + (1-a3)*20); ctx.textAlign = 'left'; }
+  }
+
+  const PROMPT = "Create a widget that shows a pixelated mammoth dancing if I'm hitting my quota this month";
+  const STEPS = ['Read this month\'s quota from Zero','Pulled closed-won deals','Worked out pace: day 19 of 30','Drew a mammoth, lit the sky by pace','Pinned widget to your dashboard'];
+  function drawTerminal(t){
+    const inP = eo(win(t,5.4,6.0)), outP = eio(win(t,9.9,10.6));
+    if(inP <= 0 || outP >= 1) return;
+    const x = 120, w = 840, h = 520;
+    const y = lerp(320, 280, inP) - outP*620, sc2 = 1 - outP*.15;
+    ctx.save(); ctx.globalAlpha = inP * (1 - outP);
+    ctx.translate(x + w/2, y + h/2); ctx.scale(sc2, sc2); ctx.translate(-w/2, -h/2);
+    ctx.shadowColor = 'rgba(46,0,0,.35)'; ctx.shadowBlur = 60; ctx.shadowOffsetY = 24;
+    ctx.fillStyle = '#1d0706'; rr(0,0,w,h,32); ctx.fill(); ctx.shadowColor = 'transparent';
+    ctx.font = F(500,22,true); ctx.fillStyle = '#a48c89'; ctx.fillText('~/dashboard  ·  MCP', 40, 58);
+    ctx.fillStyle = '#7ddc9b'; ctx.fillText('zero ✓ connected', 40 + ctx.measureText('~/dashboard  ·  MCP ').width, 58);
+    const typedN = Math.floor(clamp((t - 6.0)/2.1, 0, 1) * PROMPT.length);
+    ctx.font = F(500,32,true);
+    const lines = wrap('❯ ' + PROMPT.slice(0, typedN), w - 80);
+    lines.forEach((ln,i) => { if(i===0){ ctx.fillStyle = YEL; ctx.fillText('❯', 40, 128); ctx.fillStyle = '#fff'; ctx.fillText(ln.slice(1), 40 + ctx.measureText('❯').width, 128); } else { ctx.fillStyle = '#fff'; ctx.fillText(ln, 40, 128 + i*44); } });
+    if(typedN < PROMPT.length && Math.floor(t*2.5)%2===0){ const last = lines[lines.length-1] || ''; ctx.fillStyle = YEL; ctx.fillRect(40 + ctx.measureText(last).width + 6, 128 - 28 + (lines.length-1)*44, 16, 34); }
+    ctx.font = F(400,25,true);
+    STEPS.forEach((s,i) => { const p = eo(win(t, 8.3 + i*.3, 8.55 + i*.3)); if(p <= 0) return; ctx.globalAlpha = inP*(1-outP)*p; const yy = 300 + i*40 + (1-p)*8; ctx.fillStyle = '#7ddc9b'; ctx.fillText('✓', 40, yy); ctx.fillStyle = '#d4c3c0'; ctx.fillText(s, 76, yy); });
+    ctx.restore();
+  }
+
+  function drawWidget(t){
+    const inP = eo(win(t,10.2,11.0)), outP = eio(win(t,19.4,20.1));
+    if(inP <= 0 || outP >= 1) return;
+    const st = story(t), G = gradeAt(st.g);
+    const x = 130, y = 110, w = 820, h = 860;
+    ctx.save(); ctx.globalAlpha = inP*(1-outP);
+    ctx.translate(x + w/2, y + h/2 + (1-inP)*80); ctx.scale(lerp(.94,1,inP)*(1-outP*.25), lerp(.94,1,inP)*(1-outP*.25)); ctx.translate(-w/2, -h/2);
+    // glow
+    const glowC = st.g < 1 ? mix(hx('#4a5a8c'), hx('#2e0000'), st.g) : mix(hx('#2e0000'), hx('#e6ee3c'), st.g-1);
+    const glowA = st.g < 1 ? lerp(.45,.12,st.g) : lerp(.12,.6,st.g-1);
+    const gr = ctx.createRadialGradient(w/2, h/2, 100, w/2, h/2, 760); gr.addColorStop(0, css(glowC, glowA)); gr.addColorStop(1, css(glowC, 0));
+    ctx.fillStyle = gr; ctx.fillRect(-300,-300,w+600,h+600);
+    ctx.shadowColor = 'rgba(46,0,0,.25)'; ctx.shadowBlur = 60; ctx.shadowOffsetY = 24;
+    ctx.fillStyle = '#fff'; rr(0,0,w,h,40); ctx.fill(); ctx.shadowColor = 'transparent';
+    ctx.font = F(600,32); ctx.fillStyle = INK; ctx.fillText('Quota', 44, 74);
+    ctx.font = F(400,28); ctx.fillStyle = MUTED; ctx.textAlign = 'right'; ctx.fillText('11 days left', w-44, 74); ctx.textAlign = 'left';
+    // scene
+    scene(t, st);
+    ctx.save(); rr(40, 106, w-80, (w-80)*100/180, 26); ctx.clip();
+    ctx.imageSmoothingEnabled = false; ctx.drawImage(sc, 40, 106, w-80, (w-80)*100/180); ctx.restore();
+    const stageBottom = 106 + (w-80)*100/180;
+    // toot bubble
+    if(st.trumpet >= 0){ const p = eo(st.trumpet*3) * (1 - win(st.trumpet,.75,1)); const bx = 40 + (MX + 28*CELL)/SW*(w-80), by = 106 + (MT-8)/SH*((w-80)*100/180);
+      ctx.globalAlpha = inP*(1-outP)*p; ctx.font = F(700,30,true); const label = '+€' + st.amt + 'k', tw = ctx.measureText(label).width;
+      ctx.fillStyle = INK; ctx.fillRect(bx - tw/2 - 14 + 6, by - 44 + 6, tw + 28, 50); ctx.fillStyle = '#fff'; ctx.fillRect(bx - tw/2 - 14, by - 44, tw + 28, 50);
+      ctx.strokeStyle = INK; ctx.lineWidth = 4; ctx.strokeRect(bx - tw/2 - 14, by - 44, tw + 28, 50); ctx.fillStyle = INK; ctx.fillText(label, bx - tw/2, by - 9); ctx.globalAlpha = inP*(1-outP); }
+    // numbers
+    const pct = Math.round(st.shownWon / QUOTA * 100);
+    ctx.font = F(700,128); ctx.fillStyle = INK; ctx.fillText(pct + '%', 44, stageBottom + 150);
+    const pw = ctx.measureText(pct + '%').width; ctx.font = F(400,32); ctx.fillStyle = MUTED; ctx.fillText('of €1.2M', 44 + pw + 18, stageBottom + 150);
+    // bar
+    const by2 = stageBottom + 186, bw = w - 88;
+    ctx.fillStyle = '#e6e0e1'; rr(44, by2, bw, 20, 10); ctx.fill();
+    const fw = Math.max(20, Math.min(1, st.shownWon/QUOTA) * bw);
+    if(st.g > 1){ const lg = ctx.createLinearGradient(44,0,44+fw,0); lg.addColorStop(0, INK); lg.addColorStop(.55, INK); lg.addColorStop(1, css(mix(hx('#2e0000'), hx('#c9d12e'), st.g-1))); ctx.fillStyle = lg; } else ctx.fillStyle = INK;
+    rr(44, by2, fw, 20, 10); ctx.fill();
+    ctx.fillStyle = 'rgba(46,0,0,.45)'; ctx.fillRect(44 + bw*EXPECTED/QUOTA, by2 - 8, 3, 36);
+    // status
+    const STATUS = ['€340k behind pace. Ice age.','€140k behind pace. Still cold.','€60k ahead. Clear skies, dancing.','€260k ahead. Still dancing.','Quota hit. Golden hour.'];
+    const dotC = st.n >= 4 ? YEL : st.n >= 2 ? '#2f9e5b' : '#6f7fa8';
+    ctx.fillStyle = dotC; ctx.beginPath(); ctx.arc(54, by2 + 76, 9, 0, 7); ctx.fill();
+    ctx.font = F(500,31); ctx.fillStyle = INK; ctx.fillText(STATUS[st.n], 76, by2 + 87);
+    ctx.restore();
+  }
+
+  function drawTitle(t){
+    const a = eo(win(t,20.0,20.7)), out = eio(win(t,23.3,23.8));
+    if(a <= 0 || out >= 1) return;
+    halftoneCorners(t, a*(1-out));
+    ctx.save(); ctx.globalAlpha = a*(1-out); ctx.textAlign = 'center';
+    // small dancing mammoth
+    const f = Math.floor(t/.19)%4, g = frame('dance', f, false), cell = 9, mx = S/2 - 15*cell, my = 250 + (f%2)*cell;
+    for(let r=0;r<H;r++) for(let c=0;c<W;c++){ const v = g[r][c]; if(v==='.') continue; ctx.fillStyle = v==='T'||v==='E' ? '#f4ecdc' : v==='D' ? '#1a0000' : INK; ctx.fillRect(mx+c*cell, my+r*cell, cell, cell); }
+    ctx.fillStyle = INK; ctx.font = F(800,124); ctx.fillText('Build on Zero.', S/2, 640 + (1-a)*20);
+    const b = eo(win(t,20.6,21.2)); ctx.globalAlpha = b*(1-out);
+    ctx.font = F(400,40); ctx.fillStyle = 'rgba(46,0,0,.7)'; ctx.fillText('Ask for a widget. It runs on your live CRM data.', S/2, 716);
+    const c2 = eo(win(t,21.1,21.7)); ctx.globalAlpha = c2*(1-out);
+    ctx.font = F(500,28,true); ctx.fillStyle = MUTED; ctx.fillText('API  ·  MCP server  ·  webhooks', S/2, 790);
+    ctx.restore();
+  }
+
+  function drawEnd(t){
+    const a = eo(win(t,23.7,24.3)); if(a <= 0) return;
+    ctx.save(); ctx.globalAlpha = a; ctx.textAlign = 'center';
+    ctx.fillStyle = INK; ctx.font = F(800,96); ctx.fillText('Make CRM history.', S/2, 470 + (1-a)*20);
+    const label = 'Start for free at zero.inc'; ctx.font = F(600,38); const tw = ctx.measureText(label).width;
+    ctx.fillStyle = INK; rr(S/2 - tw/2 - 40, 550, tw + 80, 84, 42); ctx.fill(); ctx.fillStyle = '#fff'; ctx.fillText(label, S/2, 605);
+    ctx.font = F(500,24,true); ctx.fillStyle = MUTED; ctx.fillText('Spec concept by Sneha Baid. Not affiliated with Zero.', S/2, 960);
+    ctx.restore();
+  }
+
+  function render(t){
+    ctx.setTransform(1,0,0,1,0,0); ctx.globalAlpha = 1; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    ctx.fillStyle = BG; ctx.fillRect(0,0,S,S);
+    if(t < 5.8) drawFields(t);
+    drawTerminal(t);
+    drawWidget(t);
+    drawTitle(t);
+    drawEnd(t);
+    // watermark
+    if(t < 23.7){ ctx.font = F(500,19,true); ctx.fillStyle = 'rgba(46,0,0,.38)'; ctx.textAlign = 'left'; ctx.fillText('SPEC CONCEPT · Sneha Baid · not affiliated with Zero', 36, 50); }
+    // fade in / out of the loop
+    const edge = Math.min(win(t,0,.25), 1 - win(t, DUR-.35, DUR));
+    if(edge < 1){ ctx.fillStyle = `rgba(236,233,234,${1-edge})`; ctx.fillRect(0,0,S,S); }
+  }
+  window.render = render;
+
+  /* ---------- preview / record ---------- */
+  const qs = new URLSearchParams(location.search);
+  const scrub = document.getElementById('scrub'), tOut = document.getElementById('tOut'), play = document.getElementById('play');
+  (document.fonts ? document.fonts.ready : Promise.resolve()).then(async () => {
+    await document.fonts.load('700 40px Geist'); await document.fonts.load('500 20px "Geist Mono"');
+    if(qs.has('record')){
+      const total = Math.round(DUR*FPS);
+      for(let i=+(qs.get('from')||0);i<total;i++){
+        render(i/FPS);
+        const blob = await new Promise(r => cv.toBlob(r, 'image/png'));
+        await fetch('/frame?i=' + i, {method:'POST', body:blob});
+      }
+      await fetch('/done', {method:'POST'});
+      document.title = 'DONE';
+      return;
+    }
+    let t = qs.has('t') ? +qs.get('t') : 0, playing = !qs.has('t'), last = performance.now();
+    play.textContent = playing ? 'Pause' : 'Play';
+    play.onclick = () => { playing = !playing; play.textContent = playing ? 'Pause' : 'Play'; last = performance.now(); };
+    scrub.oninput = () => { t = +scrub.value; render(t); tOut.textContent = t.toFixed(1)+'s'; };
+    const loop = now => { if(playing){ t = (t + (now-last)/1000) % DUR; scrub.value = t; tOut.textContent = t.toFixed(1)+'s'; render(t); } last = now; requestAnimationFrame(loop); };
+    render(t); tOut.textContent = t.toFixed(1)+'s'; scrub.value = t;
+    requestAnimationFrame(loop);
+  });
+})();
+</script>
+</body>
+</html>
