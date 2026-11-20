@@ -1,0 +1,26 @@
+/* zero-brand-context v0.1 (spec). Read from zero.inc :root on 20 Nov 2026.
+   Drop this file into any project and every page, prototype or AI-built
+   widget starts on brand without anyone pasting the guidelines. */
+:root{
+  --z-brand-ink:#2e0000;
+  --z-canvas:#ece9ea;
+  --z-product-canvas:#e7dfe3;
+  --z-product-well:#c9d3e0;
+  --z-sand:#c9b8a0;
+  --z-void:#010101;
+  --z-ink-on-dark:#f2efe8;
+  --z-body:rgba(56,5,5,.68);
+  --z-halftone:#e6ee3c; /* observed */
+
+  --z-font-heading:"Geomanist","Geist",ui-sans-serif,sans-serif;
+  --z-font-body:"Geist",ui-sans-serif,system-ui,sans-serif;
+  --z-font-mono:"Geist Mono",ui-monospace,monospace;
+
+  --z-radius-pill:999px;
+  --z-radius-card:18px;
+  --z-radius-inner:12px;
+
+  --z-w-text:980px;
+  --z-w-media:1200px;
+  --z-ease-enter:linear(0, .01 0.8%, .065 2.5%, .172 4.8%, .308 7.6%, .447 10.9%, .574 14.6%, .68 18.6%, .766 23.1%, .834 27.9%, .884 33%, .921 38.4%, .948 44.2%, .966 50.2%, .978 56.5%, .986 63.1%, .992 70%, .995 77.1%, .997 84.5%, .998 92.1%, 1);
+}

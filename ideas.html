@@ -1,0 +1,598 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Notes for Zero — Sneha Baid</title>
+<meta name="description" content="How I'd help Zero beyond one launch: a brand system every AI tool can read, my background, gaps I noticed, and taking the brand off the screen. Spec work, not affiliated with Zero.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="brand-context/tokens.css">
+<style>
+  :root{
+    --bg:var(--z-canvas,#ece9ea); --ink:var(--z-brand-ink,#2e0000); --body:var(--z-body,rgba(56,5,5,.68));
+    --card:#fff; --line:#dcd5d6; --muted:#7d6e6f; --yellow:var(--z-halftone,#e6ee3c); --sand:var(--z-sand,#c9b8a0);
+    --void:var(--z-void,#010101); --r:var(--z-radius-card,18px);
+    --ease:var(--z-ease-enter,cubic-bezier(.2,.8,.2,1));
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{background:var(--bg);color:var(--ink);font-family:var(--z-font-body,"Geist",sans-serif);-webkit-font-smoothing:antialiased;line-height:1.5;overflow-x:hidden}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 24px}
+  a{color:inherit}
+  .spec{background:var(--ink);color:#f2e9e7;font-size:13px;text-align:center;padding:8px 16px}
+  nav{display:flex;justify-content:space-between;align-items:center;padding:18px 0;gap:16px;position:sticky;top:0;z-index:20;background:color-mix(in oklab,var(--bg) 88%,transparent);backdrop-filter:blur(10px)}
+  nav b{font-weight:700;letter-spacing:-.02em}
+  nav .links{display:flex;gap:6px;flex-wrap:wrap}
+  nav .links a{font-size:14px;text-decoration:none;padding:7px 12px;border-radius:999px;color:#5a3c3c;transition:background .2s}
+  nav .links a:hover,nav .links a.on{background:#fff;color:var(--ink)}
+  .mono{font-family:var(--z-font-mono,"Geist Mono",monospace)}
+  h1{font-size:clamp(40px,6.4vw,78px);line-height:1;letter-spacing:-.045em;font-weight:700;max-width:16ch}
+  h2{font-size:clamp(30px,4.2vw,50px);line-height:1.04;letter-spacing:-.04em;font-weight:700;max-width:20ch}
+  h3{font-size:19px;letter-spacing:-.02em;font-weight:600}
+  p.lead{font-size:clamp(17px,1.8vw,20px);color:var(--body);max-width:56ch;margin-top:18px}
+  p.body{color:var(--body);max-width:62ch;margin-top:14px;font-size:16.5px}
+  header{padding:64px 0 24px;position:relative}
+  section{padding:104px 0 0;scroll-margin-top:60px}
+  .kicker{font-size:14px;color:var(--muted);margin-bottom:12px}
+  .card{background:var(--card);border-radius:var(--r);padding:22px}
+  .btn{display:inline-flex;align-items:center;gap:8px;border-radius:999px;padding:10px 18px;font-weight:600;font-size:14.5px;text-decoration:none;border:0;cursor:pointer;font-family:inherit;background:var(--ink);color:#fff;transition:transform .15s}
+  .btn:active{transform:scale(.97)}
+  .btn.light{background:#fff;color:var(--ink);border:1px solid var(--line)}
+  button:focus-visible,a:focus-visible,input:focus-visible{outline:3px solid var(--yellow);outline-offset:2px}
+  .jump{display:flex;gap:10px;flex-wrap:wrap;margin-top:28px}
+
+  /* ---------- brand context ---------- */
+  .flow{display:grid;grid-template-columns:1fr 70px 1.2fr;align-items:center;margin-top:40px;gap:0}
+  .src{background:var(--void);color:#f2efe8;border-radius:var(--r);padding:20px;font-size:13.5px}
+  .src .t{color:var(--sand);font-size:12px;margin-bottom:10px}
+  .src div{padding:4px 0;display:flex;justify-content:space-between;gap:10px}
+  .src span:last-child{color:#8b919a}
+  .wires{height:100%;min-height:240px;position:relative}
+  .wires svg{position:absolute;inset:0;width:100%;height:100%}
+  .wires path{stroke:var(--ink);stroke-opacity:.25;stroke-width:1.5;fill:none;stroke-dasharray:3 5}
+  .wires circle{fill:var(--yellow);stroke:var(--ink);stroke-width:1}
+  .dest{display:grid;gap:8px}
+  .dest div{background:#fff;border-radius:12px;padding:10px 14px;display:flex;justify-content:space-between;gap:12px;font-size:14.5px}
+  .dest div span:last-child{color:var(--muted);font-size:13px;text-align:right}
+
+  .compare{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:40px;align-items:start}
+  .prompt{background:var(--void);color:#f2efe8;border-radius:14px;padding:14px 16px;font-size:13.5px}
+  .prompt::before{content:"❯ ";color:var(--yellow)}
+  .toggle{display:inline-flex;background:#fff;border-radius:999px;padding:4px;margin-top:14px;border:1px solid var(--line)}
+  .toggle button{border:0;background:none;font:inherit;font-size:14px;padding:8px 14px;border-radius:999px;cursor:pointer;color:var(--muted);transition:all .25s}
+  .toggle button.on{background:var(--ink);color:#fff}
+  .lint{margin-top:14px;font-size:13.5px;display:grid;gap:6px}
+  .lint div{display:flex;gap:8px;align-items:flex-start}
+  .lint i{flex:none;width:8px;height:8px;border-radius:50%;margin-top:7px}
+  .post{border-radius:var(--r);overflow:hidden;background:#fff;box-shadow:0 20px 50px -30px rgba(46,0,0,.4)}
+  .post-head{display:flex;align-items:center;gap:10px;padding:12px 14px;font-size:13.5px}
+  .post-head i{width:32px;height:32px;border-radius:50%;background:var(--ink);display:grid;place-items:center;color:#fff;font-style:normal;font-weight:700;font-size:13px}
+  .post-head small{display:block;color:var(--muted);font-size:12px}
+  .post-text{padding:0 14px 12px;font-size:14px}
+  .art{height:250px;position:relative;overflow:hidden;transition:background .5s}
+  .art canvas{position:absolute;inset:0;width:100%;height:100%}
+  .art .copy{position:absolute;left:20px;right:20px;bottom:20px;transition:all .45s var(--ease)}
+  .art .h{font-size:27px;line-height:1.05;letter-spacing:-.03em;font-weight:700;max-width:15ch}
+  .art .s{font-size:13px;margin-top:8px;opacity:.75}
+  .art .pill{position:absolute;top:18px;left:20px;font-size:12px;border-radius:999px;padding:4px 10px}
+  /* generic look */
+  .post.generic .art{background:linear-gradient(135deg,#7b2ff7,#2563eb 55%,#06b6d4)}
+  .post.generic .art .copy{color:#fff;font-family:Arial,Helvetica,sans-serif}
+  .post.generic .art .h{font-weight:800;letter-spacing:0}
+  .post.generic .art .pill{background:rgba(255,255,255,.2);color:#fff}
+  .post.generic .post-text{font-family:Arial,Helvetica,sans-serif}
+  /* brand look */
+  .post.brand .art{background:var(--bg)}
+  .post.brand .art .copy{color:var(--ink)}
+  .post.brand .art .pill{background:#fff;color:var(--ink);font-family:var(--z-font-mono,monospace)}
+
+  .files{margin-top:40px;background:var(--void);border-radius:var(--r);overflow:hidden}
+  .tabs{display:flex;gap:2px;padding:8px 8px 0;flex-wrap:wrap}
+  .tabs button{background:none;border:0;color:#8b919a;font-family:var(--z-font-mono,monospace);font-size:13px;padding:8px 14px;border-radius:10px 10px 0 0;cursor:pointer}
+  .tabs button.on{background:#151515;color:#f2efe8}
+  .files pre{background:#151515;color:#e9e3d9;font-family:var(--z-font-mono,monospace);font-size:12.5px;line-height:1.6;padding:18px 20px;max-height:340px;overflow:auto;white-space:pre-wrap;word-break:break-word}
+
+  .markets{margin-top:18px;display:grid;grid-template-columns:auto 1fr;gap:18px;align-items:center}
+  .seg{display:inline-flex;background:#fff;border-radius:999px;padding:4px;border:1px solid var(--line);flex-wrap:wrap}
+  .seg button{border:0;background:none;font-family:var(--z-font-mono,monospace);font-size:13px;padding:7px 12px;border-radius:999px;cursor:pointer;color:var(--muted)}
+  .seg button.on{background:var(--ink);color:#fff}
+  .strip{background:#fff;border-radius:14px;padding:14px 18px;display:flex;gap:18px;align-items:center;flex-wrap:wrap;font-size:14.5px;min-height:62px}
+  .strip .cta{background:var(--ink);color:#fff;border-radius:999px;padding:7px 14px;font-weight:600;font-size:13.5px}
+  .strip .d{color:var(--muted);font-family:var(--z-font-mono,monospace);font-size:13px}
+  .note{font-size:13px;color:var(--muted);margin-top:8px}
+
+  /* ---------- background ---------- */
+  .disc{display:flex;gap:8px;flex-wrap:wrap;margin-top:36px}
+  .disc button{border:1px solid var(--line);background:#fff;border-radius:999px;padding:9px 15px;font:inherit;font-size:14.5px;cursor:pointer;color:var(--ink);transition:all .2s}
+  .disc button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .panel{display:grid;grid-template-columns:1.3fr 1fr;gap:18px;margin-top:16px}
+  .panel .card ul{list-style:none;display:grid;gap:10px;margin-top:12px}
+  .panel .card li{padding-left:16px;position:relative;color:#3c1a1a;font-size:15.5px}
+  .panel .card li::before{content:"";position:absolute;left:0;top:10px;width:6px;height:6px;background:var(--ink)}
+  .lesson{background:var(--ink);color:#f6eeec;display:flex;flex-direction:column;justify-content:space-between;gap:20px}
+  .lesson .q{font-size:24px;line-height:1.15;letter-spacing:-.02em;font-weight:600}
+  .lesson .z{font-size:14px;color:#d9c3bf}
+  .relearn{margin-top:18px;display:flex;align-items:center;gap:0;overflow-x:auto;padding-bottom:6px}
+  .relearn span{white-space:nowrap;background:#fff;border-radius:999px;padding:8px 14px;font-size:14px}
+  .relearn b{width:28px;flex:none;height:2px;background:var(--ink);opacity:.3}
+  .relearn span:last-child{background:var(--yellow)}
+
+  /* ---------- gaps ---------- */
+  .gaps{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-top:40px}
+  .gap{cursor:pointer;transition:transform .25s var(--ease),box-shadow .25s;position:relative}
+  .gap:hover{transform:translateY(-3px);box-shadow:0 18px 40px -26px rgba(46,0,0,.45)}
+  .gap .n{font-family:var(--z-font-mono,monospace);font-size:12px;color:var(--muted)}
+  .gap h3{margin-top:10px}
+  .gap .saw{color:var(--body);margin-top:8px;font-size:15px}
+  .gap .more{display:grid;grid-template-rows:0fr;transition:grid-template-rows .4s var(--ease)}
+  .gap.open .more{grid-template-rows:1fr}
+  .gap .more > div{overflow:hidden}
+  .gap .make{margin-top:14px;padding-top:14px;border-top:1px dashed var(--line);font-size:15px}
+  .gap .make b{display:block;font-size:13px;color:var(--muted);font-weight:500;margin-bottom:4px}
+  .gap .chev{position:absolute;right:20px;top:20px;width:26px;height:26px;border-radius:50%;background:var(--bg);display:grid;place-items:center;font-size:14px;transition:transform .3s}
+  .gap.open .chev{transform:rotate(45deg)}
+  .gap .ev{font-size:12.5px;color:var(--muted);margin-top:8px;font-family:var(--z-font-mono,monospace)}
+
+  /* ---------- space ---------- */
+  .space{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:40px}
+  .tool label{display:flex;justify-content:space-between;font-size:14px;color:var(--muted);margin-top:14px}
+  .tool output{color:var(--ink);font-weight:600}
+  input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:6px;border-radius:99px;background:var(--line);margin-top:8px}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:var(--ink);border:3px solid #fff;box-shadow:0 0 0 1px var(--ink);cursor:pointer}
+  input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:var(--ink);border:3px solid #fff;cursor:pointer}
+  .viz{background:var(--bg);border-radius:12px;height:220px;margin-top:14px;position:relative;overflow:hidden}
+  .viz canvas{width:100%;height:100%;display:block;image-rendering:pixelated}
+  .facts{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px}
+  .facts div{background:var(--bg);border-radius:10px;padding:10px 12px}
+  .facts b{display:block;font-size:20px;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+  .facts span{font-size:12.5px;color:var(--muted)}
+  .table{margin-top:18px;background:#fff;border-radius:var(--r);overflow:hidden}
+  .row{display:grid;grid-template-columns:1fr 1.3fr 1.6fr;gap:16px;padding:14px 20px;border-top:1px solid #efe9ea;font-size:15px;align-items:start}
+  .row:first-child{border-top:0;font-size:13px;color:var(--muted);background:#faf8f8}
+  .row b{font-weight:600}
+  .row span:last-child{color:var(--body)}
+  .booth{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:18px}
+  .booth .card.dark{background:var(--void);color:#f2efe8}
+  .booth .card.dark p{color:#c9c2b8}
+  .booth p{margin-top:8px;font-size:15px;color:var(--body)}
+  .tag{display:inline-block;font-size:12px;border-radius:999px;padding:3px 10px;background:var(--bg);margin-bottom:10px}
+  .card.dark .tag{background:#1b1b1b;color:var(--sand)}
+
+  .close{padding:120px 0 90px}
+  footer{border-top:1px solid var(--line);padding:24px 0 40px;font-size:13.5px;color:var(--muted);display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px}
+
+  .reveal{opacity:0;transform:translateY(16px);transition:opacity .7s var(--ease),transform .7s var(--ease)}
+  .reveal.in{opacity:1;transform:none}
+
+  @media (max-width:860px){
+    nav .links{display:none}
+    .flow{grid-template-columns:1fr}
+    .wires{display:none}
+    .compare,.panel,.space,.booth,.gaps{grid-template-columns:1fr}
+    .markets{grid-template-columns:1fr}
+    .row{grid-template-columns:1fr;gap:4px}
+    .row:first-child{display:none}
+    section{padding-top:80px}
+  }
+  @media (max-width:480px){ .wrap{padding:0 16px} .facts{grid-template-columns:1fr 1fr} }
+  @media (prefers-reduced-motion:reduce){ *{transition:none!important;animation:none!important} .reveal{opacity:1;transform:none} }
+</style>
+</head>
+<body>
+<div class="spec"><b>Spec work.</b> Notes by Sneha Baid for a job application. Not made by or affiliated with Zero.</div>
+
+<div class="wrap">
+  <nav>
+    <b>Sneha Baid <span style="font-weight:400;color:var(--muted)">· notes for Zero</span></b>
+    <div class="links">
+      <a href="index.html">The launch</a>
+      <a href="#system">Brand context</a>
+      <a href="#background">Background</a>
+      <a href="#gaps">Gaps</a>
+      <a href="#space">Real spaces</a>
+    </div>
+  </nav>
+
+  <header>
+    <div class="kicker">Hi Zero,</div>
+    <h1>One launch shows I can ship. This is how I'd think.</h1>
+    <p class="lead">I built the Build on Zero launch to show I can work in your brand at speed. These notes cover the rest of the job: a brand system every AI tool can read by itself, the different kinds of design I've done, four gaps I noticed on your site, and how I'd take the brand off the screen.</p>
+    <div class="jump"><a class="btn" href="#system">Start with the system</a><a class="btn light" href="index.html">See the launch</a></div>
+  </header>
+
+  <!-- ============ BRAND CONTEXT ============ -->
+  <section id="system" class="reveal">
+    <div class="kicker">The system</div>
+    <h2>Brand context: so nobody re-briefs the brand again.</h2>
+    <p class="body">You built Agent context so nobody has to keep explaining the ICP to an agent. I'd build the same thing for the brand. It's one small folder of tokens, voice rules and motifs that lives inside every tool people already use. A designer prompting Claude Code, a founder making a LinkedIn post, an engineer building a widget: they all start on brand without importing a style guide or pasting hex codes.</p>
+    <p class="body">"Local" is the point. It sits next to the work, in the repo, the Figma file and the prompt, instead of in a PDF somewhere. It's also local to each market. One switch changes spelling, dates and the trust line for the US, the EU, Finland or Germany.</p>
+
+    <div class="flow">
+      <div class="src mono">
+        <div class="t">brand-context/</div>
+        <div><span>BRAND.md</span><span>voice, look, never</span></div>
+        <div><span>tokens.json</span><span>colour, type, motion</span></div>
+        <div><span>tokens.css</span><span>drop-in variables</span></div>
+        <div><span>motifs/</span><span>halftone, pixel, cave-line</span></div>
+        <div><span>lint</span><span>flags off-brand output</span></div>
+      </div>
+      <div class="wires" aria-hidden="true"><svg id="wires"></svg></div>
+      <div class="dest" id="dest">
+        <div><span>Claude Code, Cursor</span><span>reads BRAND.md as a skill</span></div>
+        <div><span>Figma</span><span>tokens become variables</span></div>
+        <div><span>ChatGPT, Claude chat</span><span>loaded through MCP</span></div>
+        <div><span>Zero's own agents</span><span>outbound drafts in brand voice</span></div>
+        <div><span>The GTM team</span><span>templates for posts and one-pagers</span></div>
+        <div><span>Printers, venues</span><span>colour and size specs for real spaces</span></div>
+      </div>
+    </div>
+
+    <div class="compare">
+      <div>
+        <h3>Same prompt, with and without it.</h3>
+        <p class="body" style="font-size:15px">Flip the switch. It's the same request, but the second time the tool has read the brand context first.</p>
+        <div class="prompt mono" style="margin-top:16px">Make a LinkedIn post announcing that you can ask Zero questions in Slack.</div>
+        <div class="toggle" role="tablist" aria-label="Brand context">
+          <button id="tGeneric" role="tab" aria-selected="true" class="on">Without brand context</button>
+          <button id="tBrand" role="tab" aria-selected="false">With brand context</button>
+        </div>
+        <div class="lint" id="lint" aria-live="polite"></div>
+      </div>
+      <div class="post generic" id="post">
+        <div class="post-head"><i>Z</i><div>Zero<small>Promoted</small></div></div>
+        <div class="post-text" id="postText"></div>
+        <div class="art"><canvas id="postArt"></canvas><span class="pill" id="postPill"></span><div class="copy"><div class="h" id="postH"></div><div class="s" id="postS"></div></div></div>
+      </div>
+    </div>
+
+    <div class="files">
+      <div class="tabs" role="tablist">
+        <button class="on" data-f="BRAND.md">BRAND.md</button>
+        <button data-f="tokens.json">tokens.json</button>
+        <button data-f="tokens.css">tokens.css</button>
+      </div>
+      <pre id="fileView" class="mono">Loading…</pre>
+    </div>
+    <p class="note">These are real files in this folder, and this page loads its colours from <span class="mono">tokens.css</span>. Every value was read from zero.inc's own CSS on 20 Nov 2026, except a few I marked "observed".</p>
+
+    <div class="markets">
+      <div class="seg" id="seg">
+        <button class="on" data-m="en-US">en-US</button><button data-m="en-EU">en-EU</button><button data-m="fi-FI">fi-FI</button><button data-m="de-DE">de-DE</button>
+      </div>
+      <div class="strip" id="strip"></div>
+    </div>
+    <p class="note">The Finnish and German lines need a native speaker to check them before they go anywhere.</p>
+  </section>
+
+  <!-- ============ BACKGROUND ============ -->
+  <section id="background" class="reveal">
+    <div class="kicker">Background</div>
+    <h2>I keep switching disciplines, on purpose.</h2>
+    <p class="body">Every move taught me something a brand designer at a 14-person company needs. That's because the job is web, motion, social, events and the odd billboard, all in the same week. Pick one.</p>
+    <div class="disc" id="disc" role="tablist"></div>
+    <div class="panel">
+      <div class="card"><h3 id="dTitle"></h3><ul id="dList"></ul></div>
+      <div class="card lesson"><div class="q" id="dLesson"></div><div class="z" id="dZero"></div></div>
+    </div>
+    <div class="relearn" aria-label="Tools I have learned and relearned">
+      <span>Hand drawings</span><b></b><span>Drawing sets and 3D</span><b></b><span>Research decks</span><b></b><span>Figma</span><b></b><span>Code with Claude Code</span>
+    </div>
+    <p class="note">Each time the old tool stopped being the fastest way to put an idea in front of people, I learned the next one. I expect to do it again here.</p>
+  </section>
+
+  <!-- ============ GAPS ============ -->
+  <section id="gaps" class="reveal">
+    <div class="kicker">What I noticed</div>
+    <h2>Four places where design could win you more customers.</h2>
+    <p class="body">I read your public site on 20 Nov 2026. Your content is better than most startups' (the honest compare pages especially). These are the places where design could do more of the selling. You'll have context I don't, so treat them as questions. Tap a card for what I'd make.</p>
+    <div class="gaps" id="gapGrid"></div>
+  </section>
+
+  <!-- ============ SPACE ============ -->
+  <section id="space" class="reveal">
+    <div class="kicker">Screen to space</div>
+    <h2>A brand that only works on screens isn't finished.</h2>
+    <p class="body">The posting mentions billboards, stunts and events. A screen forgives a lot. A wall doesn't: people walk past at speed, the light changes, and colour turns into paint, steel and felt. I trained as an architect and have built interiors, so this is the part of the job I'm most at home in. Two quick tools show how I think about it.</p>
+
+    <div class="space">
+      <div class="card tool">
+        <h3>How big does it need to be?</h3>
+        <p class="body" style="font-size:14.5px;margin-top:6px">Drag the distance. The headline height and halftone spacing are worked out so the wall reads properly from there.</p>
+        <label>Viewing distance <output id="distOut">8 m</output></label>
+        <input type="range" id="dist" min="2" max="60" value="8" aria-label="Viewing distance in metres">
+        <div class="viz"><canvas id="wallCv"></canvas></div>
+        <div class="facts">
+          <div><b id="fType">67 mm</b><span>min. headline height</span></div>
+          <div><b id="fDot">12 mm</b><span>dot spacing so dots still read as dots</span></div>
+          <div><b id="fTime">5.8 s</b><span>time to read it, walking past</span></div>
+        </div>
+        <p class="note">Rules of thumb: about 25 mm of letter height for every 3 m of distance, dots about 5 arcminutes apart, walking speed 1.4 m/s. On site I'd test with a printed swatch.</p>
+      </div>
+
+      <div class="card tool">
+        <h3>The mammoth is already a build drawing.</h3>
+        <p class="body" style="font-size:14.5px;margin-top:6px">The pixel sprite from the launch page is a grid. Pick a block size and it becomes a sculpture you could build at an event.</p>
+        <label>Block size <output id="blockOut">10 cm</output></label>
+        <input type="range" id="block" min="4" max="30" value="10" aria-label="Block size in centimetres">
+        <div class="viz"><canvas id="buildCv"></canvas></div>
+        <div class="facts">
+          <div><b id="bSize">3.0 × 2.0 m</b><span>overall size</span></div>
+          <div><b id="bCount">—</b><span>blocks to build</span></div>
+          <div><b id="bWho">—</b><span>compared with a 1.7 m person</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="table">
+      <div class="row"><span>On screen</span><span>In a real space</span><span>What changes</span></div>
+      <div class="row"><b>Halftone dot clusters</b><span>Perforated steel panels, or an LED dot wall</span><span>Dot spacing is set by viewing distance. Backlit perforations make the hero glow at night.</span></div>
+      <div class="row"><b>Cave-line figures</b><span>A hand-painted mural, or laser-etched plywood</span><span>Line weight has to grow with the wall. I've painted a mural that won an award, so I know where the brush beats the vector.</span></div>
+      <div class="row"><b>Pixel dissolve on scroll</b><span>A split-flap board or an LED wall</span><span>People walking past trigger it instead of scroll. It's the same idea, with a body as the input.</span></div>
+      <div class="row"><b>The chrome orb</b><span>A polished steel sphere at the centre of a booth</span><span>It reflects the crowd, so every photo of the booth has people in it.</span></div>
+      <div class="row"><b>#2e0000 on #ece9ea</b><span>Oxblood powder-coat on warm grey felt or concrete</span><span>Screen colour isn't paint colour. Match it to a physical swatch under the venue's light (often 3000–4000 K), not on a monitor.</span></div>
+    </div>
+
+    <div class="booth">
+      <div class="card dark"><span class="tag">The big version</span><h3>The Natural History Museum of CRM</h3><p>Take over a hall. Old CRM fields sit "fossilized" in museum vitrines: Lead Source (Other), Next Step (TBD), the seventeen fields from a good call. A three-metre pixel mammoth stands in the middle. An agent gives the guided tour.</p></div>
+      <div class="card"><span class="tag">The version we can pull off</span><h3>One vitrine, one field guide, one mammoth</h3><p>One museum case at a booth or a meetup, plus a printed <i>Field Guide to Extinct CRM Fields</i> people take home. The block mammoth from the grid above gets built live over the day, one block per demo booked.</p></div>
+    </div>
+  </section>
+
+  <div class="close reveal">
+    <h2>I'd rather show than tell, so the launch is the first piece.</h2>
+    <p class="lead">I'd love to walk you through any of this. I'm based in Bengaluru and ready to move to Helsinki.</p>
+    <div class="jump"><a class="btn" href="index.html">See the launch</a><a class="btn light" href="https://snehabaid1998-byte.github.io/" target="_blank" rel="noopener">My portfolio</a></div>
+  </div>
+
+  <footer><span>Spec notes by Sneha Baid. Built with Claude Code. Not affiliated with Zero.</span><span>Zero facts read from zero.inc on 20 Nov 2026.</span></footer>
+</div>
+
+<script>
+(() => {
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const $ = s => document.querySelector(s);
+
+  /* ---------- reveal ---------- */
+  const ro = new IntersectionObserver(es => es.forEach(e => { if(e.isIntersecting){ e.target.classList.add('in'); ro.unobserve(e.target); } }), {threshold:.08});
+  document.querySelectorAll('.reveal').forEach(el => ro.observe(el));
+  setTimeout(() => document.querySelectorAll('.reveal').forEach(el => el.classList.add('in')), 2500);
+
+  /* ---------- nav highlight ---------- */
+  const navLinks = [...document.querySelectorAll('nav .links a[href^="#"]')];
+  const so = new IntersectionObserver(es => es.forEach(e => { if(e.isIntersecting){ navLinks.forEach(a => a.classList.toggle('on', a.getAttribute('href') === '#'+e.target.id)); } }), {rootMargin:'-40% 0px -55% 0px'});
+  document.querySelectorAll('section[id]').forEach(s => so.observe(s));
+
+  /* ---------- wires ---------- */
+  function wires(){
+    const svg = $('#wires'), box = svg.getBoundingClientRect(); if(!box.width) return;
+    const src = $('.src').getBoundingClientRect(), y0 = src.top + src.height/2 - box.top;
+    const items = [...document.querySelectorAll('#dest div')];
+    svg.setAttribute('viewBox', `0 0 ${box.width} ${box.height}`);
+    svg.innerHTML = items.map((d,i) => { const r = d.getBoundingClientRect(), y1 = r.top + r.height/2 - box.top; return `<path id="w${i}" d="M0 ${y0} C ${box.width*.5} ${y0}, ${box.width*.5} ${y1}, ${box.width} ${y1}"/>`; }).join('')
+      + (reduce ? '' : items.map((_,i) => `<circle r="3.5"><animateMotion dur="${2.2+i*.25}s" repeatCount="indefinite" begin="${i*.35}s"><mpath href="#w${i}"/></animateMotion></circle>`).join(''));
+  }
+  new ResizeObserver(wires).observe($('.flow')); wires();
+
+  /* ---------- with / without demo ---------- */
+  const post = $('#post'), art = $('#postArt'), actx = art.getContext('2d');
+  const LOOKS = {
+    generic: {
+      text:'🚀 Big news! Supercharge your sales workflow with our revolutionary AI-powered Slack integration. Unlock 10x productivity today! 💯 #AI #Sales #Innovation',
+      h:'Supercharge Your Workflow 🚀', s:'The future of AI-powered sales is here', pill:'✨ NEW FEATURE',
+      lint:[['#d64545','4 colours not in the brand (purple, blue, cyan, white text)'],['#d64545','Font is Arial, not Geist'],['#d64545','"10x productivity" has no published story behind it'],['#d64545','3 emoji, 3 hashtags, 0 product shown']]
+    },
+    brand: {
+      text:'You can now ask Zero things in Slack. "Which trials are warming up?" gets an answer from the actual records, not a guess. No tab switching.',
+      h:'Ask Zero in Slack.', s:'Answers from your CRM, without opening it.', pill:'@Zero which trials are warming up?',
+      lint:[['#2f9e5b','Only token colours used'],['#2f9e5b','Geist type, brand-ink on canvas'],['#2f9e5b','Claim matches what the product does today'],['#2f9e5b','Halftone motif, one accent, product question shown']]
+    }
+  };
+  let look = 'generic';
+  function sizeArt(){ const r = art.getBoundingClientRect(); art.width = Math.round(r.width); art.height = Math.round(r.height); }
+  function drawArt(t){
+    const W = art.width, H = art.height; actx.clearRect(0,0,W,H);
+    if(look === 'generic'){
+      for(let i=0;i<6;i++){ const x = W*(.15+i*.15) + Math.sin(t/1500+i)*12, y = H*.35 + Math.cos(t/1300+i)*18; actx.fillStyle = 'rgba(255,255,255,.12)'; actx.beginPath(); actx.arc(x,y,24+i*6,0,7); actx.fill(); }
+    } else {
+      const cx = W*.82, cy = H*.28;
+      for(let y=6;y<H;y+=14) for(let x=6;x<W;x+=14){ const d = Math.hypot(x-cx,y-cy), m = 1 - d/(W*.42) + Math.sin(t/900 - d/30)*.05; if(m>.05){ actx.fillStyle = m>.5 ? '#e6ee3c' : '#eef39a'; actx.beginPath(); actx.arc(x,y,m*6,0,7); actx.fill(); } }
+    }
+  }
+  function setLook(l){
+    look = l; post.className = 'post ' + l; const L = LOOKS[l];
+    $('#postText').textContent = L.text; $('#postH').textContent = L.h; $('#postS').textContent = L.s; $('#postPill').textContent = L.pill;
+    $('#lint').innerHTML = L.lint.map(([c,t]) => `<div><i style="background:${c}"></i><span>${t}</span></div>`).join('');
+    $('#tGeneric').classList.toggle('on', l==='generic'); $('#tBrand').classList.toggle('on', l==='brand');
+    $('#tGeneric').setAttribute('aria-selected', l==='generic'); $('#tBrand').setAttribute('aria-selected', l==='brand');
+    drawArt(performance.now());
+  }
+  $('#tGeneric').onclick = () => setLook('generic'); $('#tBrand').onclick = () => setLook('brand');
+  new ResizeObserver(() => { sizeArt(); drawArt(performance.now()); }).observe(art);
+  sizeArt(); setLook('generic');
+  setTimeout(() => { if(look==='generic') setLook('brand'); }, 3500); // show the payoff once
+  if(!reduce){ const loop = t => { drawArt(t); requestAnimationFrame(loop); }; requestAnimationFrame(loop); }
+
+  /* ---------- file viewer ---------- */
+  const fileCache = {};
+  async function showFile(f){
+    document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', b.dataset.f===f));
+    const v = $('#fileView');
+    try{ if(!fileCache[f]){ const r = await fetch('brand-context/'+f); if(!r.ok) throw 0; fileCache[f] = await r.text(); } v.textContent = fileCache[f]; }
+    catch(e){ v.textContent = 'Open this page through a local server (or GitHub Pages) to load brand-context/' + f + '.'; }
+  }
+  document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => showFile(b.dataset.f));
+  showFile('BRAND.md');
+
+  /* ---------- markets ---------- */
+  let MARKETS = {
+    'en-US':{date:'Nov 20, 2026',cta:'Try Zero for 14 days',trust_line:'SOC 2 Type I. Type II in progress.'},
+    'en-EU':{date:'20 Nov 2026',cta:'Try Zero for 14 days',trust_line:'Your customer data stays in the EU by default.'},
+    'fi-FI':{date:'20.11.2026',cta:'Kokeile Zeroa ilmaiseksi',trust_line:'Asiakasdata säilytetään oletuksena EU:ssa.'},
+    'de-DE':{date:'20.11.2026',cta:'Zero kostenlos testen',trust_line:'Kundendaten bleiben standardmäßig in der EU.'}
+  };
+  fetch('brand-context/tokens.json').then(r => r.json()).then(j => { for(const k in j.markets) MARKETS[k] = {...MARKETS[k], ...j.markets[k]}; }).catch(()=>{});
+  function market(m){
+    document.querySelectorAll('#seg button').forEach(b => b.classList.toggle('on', b.dataset.m===m));
+    const M = MARKETS[m];
+    $('#strip').innerHTML = `<span class="cta">${M.cta || 'Try Zero for 14 days'}</span><span>${M.trust_line}</span><span class="d">Updated ${M.date}</span>`;
+  }
+  document.querySelectorAll('#seg button').forEach(b => b.onclick = () => market(b.dataset.m));
+  market('en-US');
+
+  /* ---------- background ---------- */
+  const DISC = [
+    {k:'Architecture', t:'Architecture (B.Arch)', l:[
+      'Thesis: a five-star hotel and convention centre at Jewar Aerocity, against a live brief. 154 keys and a 9,400 m² column-free ballroom, resolved down to services.',
+      'Anand Vihar Railport, a transit interchange with split arrival and departure levels. My largest public-flow project.',
+      'Light-transmitting concrete research: mix, mould and manufacture.'],
+      q:'Design for people moving through space, not people staring at a screen.', z:'At Zero: booths, offices and billboards that work at walking speed.'},
+    {k:'Interiors and making', t:'Interiors and making', l:[
+      'Xochi Resto-Bar, Bengaluru, with ID+AS and their team. 603 m², 200+ covers, built in 2019. My part was detailing, material studies, 3D and drawings.',
+      'A faceted installation I designed and fabricated.',
+      'A mural that won an award.'],
+      q:'Know what happens to a colour when it becomes paint, metal or light.', z:'At Zero: getting #2e0000 right on felt, steel and print, not just on a screen.'},
+    {k:'Research', t:'Research (MSc, UK)', l:[
+      'MUM.me, a mental-health app for pregnant women, from market research through usability testing.',
+      '50+ mixed-methods interviews across projects.',
+      'A study for a luxury manufacturing brand evaluating new production technology.'],
+      q:'Ask before you draw.', z:'At Zero: talk to five customers before redesigning anything they rely on.'},
+    {k:'Operations and CRMs', t:'Operations, recruiting and CRMs (UK)', l:[
+      'A cross-border hiring blueprint for 50+ international hires, with 75% fewer handoff failures.',
+      'Recruiting on Bullhorn and HireVue at ManpowerGroup: 45% more qualified placements in six months.',
+      '400 touchpoints mapped across two accounts, with candidate ghosting down 50%.'],
+      q:'I\'ve logged the calls into the seventeen fields.', z:'At Zero: I know the pain you sell against because I lived it, so the jokes land.'},
+    {k:'Product', t:'Product design', l:[
+      'Bengaluru Tech Week 2026: five website interfaces on one token set, built with a developer and a PM and used live during the event.',
+      'Wispr Flow: an unsolicited pitch with four directions and a working prototype.',
+      'Rise Connect: four stakeholder groups on one coordination system, sketched in three days.'],
+      q:'One token set that five teams can share.', z:'At Zero: brand context is the same idea, applied to the brand.'},
+    {k:'Brand', t:'Brand', l:[
+      'The Design Daftar, brand operations, Bengaluru, Jun–Jul 2026.',
+      'EquityList spec brand kit: I audited their live CSS, found four near-duplicate violets and 8+ typefaces, then built the kit and a data-viz deep dive.'],
+      q:'Audit first, then build.', z:'At Zero: the brand context here started by reading your own CSS.'},
+    {k:'Creative code', t:'Creative code', l:[
+      'London Architecture: point your phone at a building and it tells you what it is, using GPS and the compass. Hand-gesture control too.',
+      'Spatial Marvels: seven buildings as depth cards that move as you tilt.',
+      'Both built with Claude Code, both live, both posted as Reels.'],
+      q:'Ship it, then post it.', z:'At Zero: a landing page in days and a launch video in a week, like the posting asks.'}
+  ];
+  const disc = $('#disc');
+  disc.innerHTML = DISC.map((d,i) => `<button role="tab" data-i="${i}">${d.k}</button>`).join('');
+  function pick(i){
+    const d = DISC[i];
+    disc.querySelectorAll('button').forEach((b,k) => { b.classList.toggle('on', k===i); b.setAttribute('aria-selected', k===i); });
+    $('#dTitle').textContent = d.t; $('#dList').innerHTML = d.l.map(x => `<li>${x}</li>`).join('');
+    $('#dLesson').textContent = d.q; $('#dZero').textContent = d.z;
+  }
+  disc.onclick = e => { const b = e.target.closest('button'); if(b) pick(+b.dataset.i); };
+  pick(0);
+
+  /* ---------- gaps ---------- */
+  const GAPS = [
+    {h:'Proof is mostly words.', saw:'Eight customer stories and eight compare pages, all thorough and honest. One story has a video. The compare pages are text only.',
+      ev:'zero.inc/customers, zero.inc/compare', make:'A 15-second "same call, two CRMs" clip at the top of every compare page: logging one good call in HubSpot (seventeen fields) next to Zero (nothing to type). Then one animated number per story card, taken straight from the story.'},
+    {h:'The EU advantage is quiet.', saw:'Zero is built in Helsinki, stores customer data in the EU by default and is SOC 2 Type I. That\'s in llms.txt and the trust centre, but I didn\'t find it on the homepage.',
+      ev:'zero.inc/llms.txt, homepage text', make:'For a European startup choosing between US CRMs, that\'s a reason to buy. I\'d add an EU trust line, market variants through brand context (the switcher above), and social cuts in local languages for the Nordics and DACH.'},
+    {h:'The brand lives with very few people.', saw:'design.zero.inc credits one designer. The team is growing from 14 to about 20, and founders and GTM people post on LinkedIn every week.',
+      ev:'design.zero.inc, careers page', make:'Brand context plus a small template set in the tools people already use, so a founder can make an on-brand post in five minutes without waiting for design. Design then spends its time on launches, not resizing.'},
+    {h:'Customers\' agents could sound like them.', saw:'Agent context already teaches Zero\'s agents the ICP and why customers buy. Outreach drafts are a big part of what agents produce.',
+      ev:'zero.inc/llms.txt, "Agent context"', make:'A brand-voice section inside Agent context, so drafts sound like the sender\'s company. This is a product idea, not a brand one. I\'d raise it with the team, not claim it.'}
+  ];
+  $('#gapGrid').innerHTML = GAPS.map((g,i) => `<div class="card gap" tabindex="0" role="button" aria-expanded="false"><span class="chev">+</span><div class="n">0${i+1}</div><h3>${g.h}</h3><p class="saw">${g.saw}</p><div class="ev">Seen on: ${g.ev}</div><div class="more"><div><div class="make"><b>What I'd make</b>${g.make}</div></div></div></div>`).join('');
+  document.querySelectorAll('.gap').forEach(c => { const tog = () => { c.classList.toggle('open'); c.setAttribute('aria-expanded', c.classList.contains('open')); }; c.onclick = tog; c.onkeydown = e => { if(e.key==='Enter'||e.key===' '){ e.preventDefault(); tog(); } }; });
+
+  /* ---------- viewing distance ---------- */
+  const wallCv = $('#wallCv'), wctx = wallCv.getContext('2d');
+  function wall(){
+    const d = +$('#dist').value;
+    const typeMm = d * 1000 / 3000 * 25, dotMm = d * 1000 * Math.tan(5/60*Math.PI/180), secs = d*2/1.4;
+    $('#distOut').textContent = d + ' m';
+    $('#fType').textContent = typeMm >= 1000 ? (typeMm/1000).toFixed(2)+' m' : Math.round(typeMm)+' mm';
+    $('#fDot').textContent = Math.round(dotMm) + ' mm';
+    $('#fTime').textContent = secs.toFixed(1) + ' s';
+    const r = wallCv.getBoundingClientRect(), dpr = Math.min(2, devicePixelRatio||1);
+    wallCv.width = r.width*dpr; wallCv.height = r.height*dpr; wctx.setTransform(dpr,0,0,dpr,0,0);
+    const W = r.width, H = r.height, ground = H - 26;
+    wctx.fillStyle = '#ece9ea'; wctx.fillRect(0,0,W,H);
+    // scale: fit a 6 m tall wall into the panel; person 1.7 m
+    const pxPerM = (ground - 14) / 6;
+    const wallW = Math.min(W*.62, 9*pxPerM), wallX = 14, wallH = 6*pxPerM;
+    wctx.fillStyle = '#2e0000'; wctx.fillRect(wallX, ground - wallH, wallW, wallH);
+    // halftone at true spacing (clamped for display)
+    const pitch = Math.max(3, dotMm/1000*pxPerM);
+    for(let y = ground - wallH + pitch; y < ground - 4; y += pitch) for(let x = wallX + pitch; x < wallX + wallW - 4; x += pitch){
+      const m = 1 - Math.hypot(x - (wallX+wallW*.85), y - (ground-wallH*.8)) / (wallW*.55);
+      if(m > .05){ wctx.fillStyle = '#e6ee3c'; wctx.beginPath(); wctx.arc(x, y, Math.max(.6, m*pitch*.42), 0, 7); wctx.fill(); }
+    }
+    // headline at required cap height
+    const capPx = Math.max(4, typeMm/1000*pxPerM*1.4);
+    wctx.fillStyle = '#f2efe8'; wctx.font = `700 ${capPx}px Geist, sans-serif`; wctx.textBaseline = 'top';
+    wctx.save(); wctx.beginPath(); wctx.rect(wallX, ground-wallH, wallW, wallH); wctx.clip();
+    wctx.fillText('Make CRM history', wallX + 10, ground - wallH + 10); wctx.restore();
+    // ground + person at distance (drawn smaller with distance for a perspective hint)
+    wctx.fillStyle = '#d6cfd0'; wctx.fillRect(0, ground, W, 2);
+    const px = wallX + wallW + 16 + Math.min(W - wallX - wallW - 40, d/60*(W - wallX - wallW - 40));
+    const ph = 1.7*pxPerM;
+    wctx.fillStyle = '#2e0000';
+    wctx.beginPath(); wctx.arc(px, ground - ph + ph*.09, ph*.09, 0, 7); wctx.fill();
+    wctx.fillRect(px - ph*.08, ground - ph + ph*.19, ph*.16, ph*.45);
+    wctx.fillRect(px - ph*.07, ground - ph*.36, ph*.05, ph*.36); wctx.fillRect(px + ph*.02, ground - ph*.36, ph*.05, ph*.36);
+    wctx.fillStyle = '#7d6e6f'; wctx.font = '500 11px "Geist Mono", monospace'; wctx.textBaseline = 'alphabetic';
+    wctx.fillText(d + ' m away', Math.min(px - 20, W - 70), H - 8);
+    wctx.fillText('6 m wall', wallX, H - 8);
+  }
+  $('#dist').addEventListener('input', wall);
+  new ResizeObserver(wall).observe(wallCv);
+
+  /* ---------- mammoth build grid ---------- */
+  const BODY = ["...................MMM",".............MMM..MMMMM","...........MMMMMMMMMMMMM",".........MMMMMMMMMMMMMMMM",".......MMMMMMMMMMMMMMMMMMM",".....MMMMMMMMMMMMMMMMMMMMM","...MMMMMMMMMMMMMMMMMMMMMMM","..MMMMMMMMMMMMMMMMMMMMMMMM","..MMMMMMMMMMMMMMMMMMMMMMMM","..MMMMMMMMMMMMMMMMMMMMMMM","..MMMMMMMMMMMMMMMMMMMMMM","..MDMDMMDMDMMDMMDMDMMDM"];
+  const GW = 30, GH = 17;
+  const grid = Array.from({length:GH}, () => Array(GW).fill('.'));
+  const set = (r,c,v) => { if(r>=0&&r<GH&&c>=0&&c<GW) grid[r][c] = v; };
+  [4,8,16,20].forEach(c => { for(let r=12;r<=16;r++) for(let k=0;k<3;k++) set(r,c+k,'M'); });
+  BODY.forEach((row,r) => [...row].forEach((ch,c) => { if(ch!=='.') set(r,c,'M'); }));
+  [[9,24],[9,25],[10,24],[10,25],[11,24],[11,25],[12,25],[13,25],[14,25],[15,25],[15,26],[14,27]].forEach(([r,c]) => set(r,c,'M'));
+  [[10,23],[11,23],[12,24],[13,25],[13,26],[13,27],[12,28],[11,29],[10,29]].forEach(([r,c]) => set(r,c,'T'));
+  set(6,2,'M'); set(7,1,'M'); set(8,1,'M'); set(9,0,'M'); set(5,22,'E');
+  const cells = grid.flat().filter(v => v!=='.').length;
+  const bCv = $('#buildCv'), bctx = bCv.getContext('2d');
+  function build(){
+    const cm = +$('#block').value, wM = GW*cm/100, hM = GH*cm/100;
+    $('#blockOut').textContent = cm + ' cm';
+    $('#bSize').textContent = `${wM.toFixed(1)} × ${hM.toFixed(1)} m`;
+    $('#bCount').textContent = cells.toLocaleString('en-US');
+    const ratio = hM/1.7; $('#bWho').textContent = Math.abs(ratio-1) < .06 ? 'About their height' : ratio > 1 ? ratio.toFixed(1)+'× taller' : Math.round(ratio*100)+'% of their height';
+    const r = bCv.getBoundingClientRect(), dpr = Math.min(2, devicePixelRatio||1);
+    bCv.width = r.width*dpr; bCv.height = r.height*dpr; bctx.setTransform(dpr,0,0,dpr,0,0);
+    const W = r.width, H = r.height, ground = H - 22;
+    bctx.fillStyle = '#ece9ea'; bctx.fillRect(0,0,W,H);
+    // fit the taller of mammoth or person, and the wider of the two
+    const maxH = Math.max(hM, 1.7), maxW = wM + .9;
+    const s = Math.min((ground - 10)/maxH, (W - 24)/maxW);
+    const cs = cm/100*s, ox = 12, oy = ground - GH*cs;
+    for(let rr=0; rr<GH; rr++) for(let c=0; c<GW; c++){
+      const v = grid[rr][c]; if(v==='.') continue;
+      bctx.fillStyle = v==='T' ? '#f4ecdc' : v==='E' ? '#f4ecdc' : '#2e0000';
+      bctx.fillRect(ox + c*cs, oy + rr*cs, cs, cs);
+      if(cs > 5){ bctx.strokeStyle = 'rgba(236,233,234,.35)'; bctx.lineWidth = 1; bctx.strokeRect(ox + c*cs + .5, oy + rr*cs + .5, cs - 1, cs - 1); }
+    }
+    // person
+    const ph = 1.7*s, px = ox + GW*cs + Math.max(14, .4*s);
+    bctx.fillStyle = '#b5a38b';
+    bctx.beginPath(); bctx.arc(px, ground - ph + ph*.09, ph*.09, 0, 7); bctx.fill();
+    bctx.fillRect(px - ph*.08, ground - ph + ph*.19, ph*.16, ph*.45);
+    bctx.fillRect(px - ph*.07, ground - ph*.36, ph*.05, ph*.36); bctx.fillRect(px + ph*.02, ground - ph*.36, ph*.05, ph*.36);
+    bctx.fillStyle = '#d6cfd0'; bctx.fillRect(0, ground, W, 2);
+    bctx.fillStyle = '#7d6e6f'; bctx.font = '500 11px "Geist Mono", monospace';
+    bctx.fillText(`${GW} × ${GH} blocks`, 12, H - 6);
+    bctx.fillText('1.7 m', Math.min(px - 12, W - 40), H - 6);
+  }
+  $('#block').addEventListener('input', build);
+  new ResizeObserver(build).observe(bCv);
+  document.fonts && document.fonts.ready.then(() => { wall(); build(); });
+})();
+</script>
+</body>
+</html>
